@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SuperChat</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f0f0f0; }
+    #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; }
+    #message { width: 80%; }
+  </style>
+</head>
+<body>
+  <h1>SuperChat</h1>
+  <div id="auth">
+    <input id="username" placeholder="Username"><br>
+    <input id="password" type="password" placeholder="Password"><br>
+    <button onclick="register()">Register</button>
+    <button onclick="login()">Login</button>
+  </div>
+  <div id="chatUI" style="display:none;">
+    <div id="chat"></div>
+    <input id="message" placeholder="Enter message...">
+    <button onclick="send()">Send</button>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    let socket;
+    let token = '';
+
+    function register() {
+      fetch('http://localhost:3000/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('username').value,
+          password: document.getElementById('password').value
+        })
+      }).then(res => res.text()).then(alert);
+    }
+
+    function login() {
+      fetch('http://localhost:3000/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('username').value,
+          password: document.getElementById('password').value
+        })
+      }).then(res => res.json()).then(data => {
+        token = data.token;
+        connectSocket();
+        document.getElementById('auth').style.display = 'none';
+        document.getElementById('chatUI').style.display = 'block';
+      });
+    }
+
+    function connectSocket() {
+      socket = io('http://localhost:3000', {
+        auth: { token }
+      });
+
+      socket.on('load_messages', msgs => {
+        const chat = document.getElementById('chat');
+        msgs.forEach(m => {
+          chat.innerHTML += `<p><b>${m.sender}:</b> ${m.content}</p>`;
+        });
+      });
+
+      socket.on('receive_message', m => {
+        document.getElementById('chat').innerHTML += `<p><b>${m.sender}:</b> ${m.content}</p>`;
+      });
+    }
+
+    function send() {
+      const msg = document.getElementById('message').value;
+      socket.emit('send_message', msg);
+      document.getElementById('message').value = '';
+    }
+  </script>
+</body>
+</html>
